@@ -1,4 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_compare/image_compare.dart';
+
+//from the image_picker API:
+// "No configuration required - the plugin should work out of the box.
+// It is however highly recommended to prepare for Android killing the
+// application when low on memory. How to prepare for this is discussed
+// in the Handling MainActivity destruction on Android section."
+
+
+// get access to pictures somehow (either all or a user-selected subset)
+
+// separate the pictures into groups
+// want some measure ranging from 0 to 1 here saying how strict it is for differentiating between groups
+// 0 should be "doesn't differentiate at all, everything's the same group"
+// 1 should be "differentiates completely, every pic is a different group (unless two are the *exact* same)"
+// should default to some "best" value in that range, but give user option to change it
+
+// give the user the option to move pictures in groups around (in case the algorithm isn't perfect) and also have option to continue
+
+// once the user has hit the continue button, identify and show "best" picture in each group
+
+// give option to delete other pics or to select certain pics to delete
+// might not be possible depending on how deleting photos is managed by non-standard photos apps
+
+// from the best picture in each group, find k most memorable pictures
+
+// give option to post it to instagram with some caption
+
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:photo_prune/main.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,109 +43,119 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    SelectedImages images = SelectedImages();
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SelectPage(title: 'Flutter Demo Home Page', images: images),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+class SelectedImages {
+  final ImagePicker imagePicker = ImagePicker();
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  List<XFile>? imageList = [];
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  void addToImages() async {
+    final List<XFile>? selectedImages = await imagePicker.pickMultiImage();
+    if (selectedImages!.isNotEmpty) {
+    imageList!.addAll(selectedImages);
+    }
+  }
+
+}
+
+class SelectPage extends StatefulWidget {
+  final SelectedImages images;
+
+  const SelectPage({Key? key, required this.title, required this.images}) : super(key: key);
 
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SelectPage> createState() => _SelectPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SelectPageState extends State<SelectPage> {
+  void selectImages() async {
+    widget.images.addToImages();
 
-  void _incrementCounter() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have clicked the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+        appBar: AppBar(
+          title: const Text("Selecting Images"),
         ),
-      ),
+        body: Center(
+          child: Column(
+            children: [
+              MaterialButton(
+                  color: Colors.blue,
+                  child: const Text(
+                      "Pick Images from Gallery",
+                      style: TextStyle(
+                          color: Colors.white70, fontWeight: FontWeight.bold
+                      )
+                  ),
+                  onPressed: () {
+                    selectImages();
+                  }
+              ),
+              Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: GridView.builder(
+                        itemCount: widget.images.imageList!.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3
+                        ),
+                        itemBuilder: (BuildContext context, int index) {
+                          return Image.file(File(widget.images.imageList![index].path), fit: BoxFit.cover);
+                        }
+                    ),
+                  )
+              )
+            ],
+          ),
+        ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        onPressed: () {},
+        tooltip: "Continue on to next phase",
+        child: const Text("Next")
+      ),
+      persistentFooterButtons: [
+        MaterialButton(
+          onPressed: () {},
+          child: const Text("Previous Collections")
+        ),
+        MaterialButton(
+          onPressed: () {},
+          child: const Text("About")
+        )
+      ],
     );
   }
 }
+
+// class PruningPage extends StatefulWidget {
+//   const PruningPage({Key? key, required this.title}) : super(key: key);
+//
+//   final String title;
+//
+//   @override
+//   State<PruningPage> createState() => _PruningPageState();
+// }
+//
+// class _PruningPageState extends State<PruningPage> {
+//
+//
+// }
